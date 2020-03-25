@@ -1,2 +1,3 @@
 # Project exclude paths
 /venv/
+!/fitting_functions2.py

@@ -23,6 +23,7 @@ from bokeh.plotting import figure, show
 from bokeh.models import Range1d, CustomJS
 import colorcet as cc
 
+
 # Fitting
 from astropy.io import fits
 import pymc3 as pm
@@ -84,7 +85,7 @@ def plotting_lightcurve(tic_id, sector, days, flux):
     return pos
 
 
-def plotting_bokeh_click(tic_id, sector, flux, days):
+def plotting_bokeh_click(tic_id, sector, flux,  days):
     callback = CustomJS(code="""
     // the event that triggered the callback is cb_obj:
     // The event type determines the relevant attributes
@@ -103,7 +104,6 @@ def plotting_bokeh_click(tic_id, sector, flux, days):
     # execute a callback whenever the plot canvas is tapped
     plot.js_on_event('tap', callback)
     show(plot)
-
 
 def folding(days, t0_guess, period_guess):
     x_fold = (days - t0_guess + 0.5 * period_guess) % period_guess - 0.5 * period_guess
@@ -140,9 +140,9 @@ def manual_fitting(tic_id, sector, days, flux, t0_guess, period_guess, star_radi
 
         r, b = xo.distributions.get_joint_radius_impact(
             min_radius=0.0005, max_radius=0.5, testval_r=0.015)
-
+        duration = pm.Uniform("duration", lower=0.05, upper=1.0)
         orbit = xo.orbits.KeplerianOrbit(
-            period=period, t0=t0, b=b, r_star=star_radius, m_star=star_mass)
+            period=period, t0=t0, r_star=star_radius, m_star=star_mass, duration=duration)
 
         # The light curve model is computed using "starry"
         star = xo.StarryLightCurve(u)
@@ -180,13 +180,13 @@ def best_model(model):
 
 
 def visualizing_fitting_process(days, trace, visual='yes'):
-    varnames = ["period", "t0", "r", "b"]
+    varnames = ["period", "t0", "r", "duration"]
     if visual == 'yes':
         pm.traceplot(trace, varnames=varnames)
-    labels = ["period [days]", "transit time [days]", "radius ratio", "impact parameter"]
+    labels = ["period [days]", "transit time [days]", "radius ratio"]
     samples = pm.trace_to_dataframe(trace, varnames=varnames)
     if visual == 'yes':
-        corner.corner(samples[["period", "t0", "r__0", "b__0"]], labels=labels)
+        corner.corner(samples[["period", "t0", "r__0"]], labels=labels)
     # Compute the posterior parameters
     median_radius_ratio = np.median(trace["r"])
     median_impact_parameter = np.median(trace["b"])
@@ -195,19 +195,6 @@ def visualizing_fitting_process(days, trace, visual='yes'):
     median_x_fold = (days - median_t0 + 0.5 * median_period) % median_period - 0.5 * median_period
     median_inds = np.argsort(median_x_fold)
     return median_x_fold, median_t0, median_period, median_radius_ratio, median_impact_parameter
-
-
-def transit_depth(radius_ratio):
-    return radius_ratio ** 2
-
-def transit_depth2(radius_ratio, star_radius):
-    return (radius_ratio/star_radius) ** 2
-
-
-def transit_duration(period, impact_parameter, radius_ratio):
-    duration = (period / np.pi) * (1 / impact_parameter) * np.sqrt(
-        (1 + radius_ratio) ** 2 - (impact_parameter ** 2))
-    return duration
 
 
 def plotting_final_fit(tic_id, sector, days, flux, trace, model, light_curve, median_x_fold):
@@ -270,15 +257,7 @@ def guidance(tic_id, sector):
     print(f'period = {median_period}')
     print(f'radius_ratio = {median_radius_ratio}')
     print(f'impact_parameter = {median_impact_parameter}')
-    depth = transit_depth(median_radius_ratio)
-    duration = transit_duration(median_period,median_impact_parameter, median_radius_ratio)
     plotting_final_fit(tic_id, sector, days, flux, trace, model, light_curve, median_x_fold)
-    print(f'radius_ratio = {median_radius_ratio}')
-    print(f'impact_parameter = {median_impact_parameter}')
-    print(f't0 = {median_t0}')
-    print(f'period = {median_period}')
-    print(f'Transit depth = {depth}')
-    print(f'Transit duration = {duration}')
     print("ooo")
 
 
