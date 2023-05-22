@@ -4,7 +4,7 @@ colorcet
 bokeh
 corner
 theano
-requests==2.23.0
+requests==2.31.0
 matplotlib==3.2.1
 pytest==5.4.1
 astroquery==0.4
